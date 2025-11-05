@@ -112,7 +112,7 @@ export default function Home() {
         </p>
         <Link href='dashboard'>
           <Button size='lg' variant='secondary' className="text-blue-600 bg-white hover:bg-gray-100">
-            Start For Free <ArrowRight className="ml-2 h-5 w-5" />
+            Start For Free  <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </Link>
       </div>
