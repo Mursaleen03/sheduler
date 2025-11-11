@@ -1,6 +1,28 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card"
+'use client';
 
-const EventCard = ({ event, usename }) => {
+import { Link, Trash } from "lucide-react"
+import { Button } from "./ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+const EventCard = ({ event, username, isPublic = false }) => {
+    const [isCopied, setIsCopied] = useState(false);
+    const router = useRouter();
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(
+                `${window.location.origin}/${username}/${event.id}`
+            );
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        } catch (error) {
+            console.error("Failed to copy:", error);
+            
+        }
+    }
+
     return (
         <Card className="flex flex-col justify-between cursor-pointer">
             <CardHeader>
@@ -15,11 +37,24 @@ const EventCard = ({ event, usename }) => {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <p>{event.description.substring(0, event.description.indexOf("."))}</p>
+            <p>
+                {event.description.indexOf(".") !== -1
+                    ? event.description.substring(0, event.description.indexOf("."))
+                    : event.description
+                }
+            </p>
             </CardContent>
-            <CardFooter>
-                <p>Card Footer</p>
-            </CardFooter>
+            {!isPublic && (
+              <CardFooter className='flex gap-2'>
+                <Button variant={'outline'} onClick = {handleCopy}>
+                    <Link/> 
+                    {isCopied ? "Copied!" : "Copy Link"}
+                </Button>
+                <Button variant="destructive">
+                    <Trash /> Delete
+                </Button>
+              </CardFooter>
+            )}
         </Card>
     )
 }
