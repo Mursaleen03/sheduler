@@ -81,5 +81,9 @@ export async function deleteEvent(eventId) {
         throw new Error("Event not found or unauthorized")
     }
 
-    return {};
+    await db.event.delete({
+        where: { id: eventId}
+    })
+
+    return { success: true};
 }
