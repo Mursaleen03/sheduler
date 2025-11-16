@@ -4,25 +4,25 @@ import { eventSchema } from "@/app/lib/validators";
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 
-export async function createEvent(data){
-const { userId } = await auth();
-    
+export async function createEvent(data) {
+    const { userId } = await auth();
+
     if (!userId) {
         throw new Error("Unauthorized");
     }
 
     const validatedData = eventSchema.parse(data);
 
-    
-        const user = await db.user.findUnique({
-            where: { clerkUserId: userId },
-        });
-    if(!user) {
+
+    const user = await db.user.findUnique({
+        where: { clerkUserId: userId },
+    });
+    if (!user) {
         throw new Error("User not found")
     }
 
     const event = await db.event.create({
-        data:{
+        data: {
             ...validatedData,
             userId: user.id,
 
@@ -33,22 +33,22 @@ const { userId } = await auth();
 
 export async function getUserEvents() {
     const { userId } = await auth();
-    
+
     if (!userId) {
         throw new Error("Unauthorized");
     }
 
     const user = await db.user.findUnique({
-            where: { clerkUserId: userId },
-        });
+        where: { clerkUserId: userId },
+    });
 
-    if(!user) {
+    if (!user) {
         throw new Error("User not found")
     }
 
     const events = await db.event.findMany({
-        where: {userId: user.id},
-        orderBy: { createdAt: "desc"},
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
         include: {
             _count: {
                 select: { bookings: true },
@@ -60,21 +60,21 @@ export async function getUserEvents() {
 
 export async function deleteEvent(eventId) {
     const { userId } = await auth();
-    
+
     if (!userId) {
         throw new Error("Unauthorized");
     }
 
     const user = await db.user.findUnique({
-            where: { clerkUserId: userId },
-        });
+        where: { clerkUserId: userId },
+    });
 
-    if(!user) {
+    if (!user) {
         throw new Error("User not found")
     }
 
     const event = await db.event.findUnique({
-        where: { id: eventId}
+        where: { id: eventId }
     });
 
     if (!event || event.userId !== user.id) {
@@ -82,8 +82,29 @@ export async function deleteEvent(eventId) {
     }
 
     await db.event.delete({
-        where: { id: eventId}
+        where: { id: eventId }
     })
 
-    return { success: true};
+    return { success: true };
+}
+
+export async function getEventDetails(username, eventId) {
+    const event = await db.event.findFirst({
+        where: {
+            id: eventId,
+            user: {
+                username: username,
+            },
+        },
+        include: {
+            user: {
+                select: {
+                    name: true,
+                    email: true,
+                    imageUrl: true,
+                },
+            },
+        },
+    });
+    return event;
 }
