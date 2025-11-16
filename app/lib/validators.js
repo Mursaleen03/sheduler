@@ -31,7 +31,6 @@ export const daySchema = z.object({
     // Convert "HH:MM" to minutes for comparison
     const startMinutes = data.startTime.split(':').reduce((h, m) => h * 60 + +m, 0);
     const endMinutes = data.endTime.split(':').reduce((h, m) => h * 60 + +m, 0);
-    console.log(startMinutes, endMinutes);
     return startMinutes < endMinutes;
     
   }
