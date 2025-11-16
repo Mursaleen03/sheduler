@@ -45,7 +45,7 @@ const AvailabilityForm = ({ initialData }) => {
                     <div key={day} className='flex items-center space-x-4 mb-4'>
                         <Controller name={`${day}.isAvailable`}
                             control={control}
-                            render={(field) => {
+                            render={({field}) => {
                                 return <Checkbox checked={field.value} onCheckedChange={(checked) => {
                                     setValue(`${day}.isAvailable`, checked);
                                     if (!checked) {
@@ -62,7 +62,7 @@ const AvailabilityForm = ({ initialData }) => {
                             <>
                                 <Controller name={`${day}.startTime`}
                                     control={control}
-                                    render={(field) => {
+                                    render={({field}) => {
                                         return (
                                             <Select
                                                 onValueChange={field.onChange}
@@ -84,7 +84,7 @@ const AvailabilityForm = ({ initialData }) => {
                                 <span>to</span>
                                 <Controller name={`${day}.endTime`}
                                     control={control}
-                                    render={(field) => {
+                                    render={({field}) => {
                                         return (
                                             <Select
                                                 onValueChange={field.onChange}

@@ -2,10 +2,10 @@ import z from "zod";
 
 export const usernameSchema = z.object({
   username: z.string()
-  .min(3)
-  .max(20)
-  .regex(/^[a-zA-Z0-9_]+$/, 
-  "Username can only contain letters, numbers, and underscores")
+    .min(3)
+    .max(20)
+    .regex(/^[a-zA-Z0-9_]+$/, 
+      "Username can only contain letters, numbers, and underscores"),
 });
 
 export const eventSchema = z.object({
@@ -27,10 +27,14 @@ export const daySchema = z.object({
   startTime: z.string().optional(),
   endTime: z.string().optional(),
 }).refine((data) => {
-  if(data.isAvailable){
-    return data.startTime < data.endTime
+  if(data.isAvailable && data.startTime && data.endTime){
+    // Convert "HH:MM" to minutes for comparison
+    const startMinutes = data.startTime.split(':').reduce((h, m) => h * 60 + +m, 0);
+    const endMinutes = data.endTime.split(':').reduce((h, m) => h * 60 + +m, 0);
+    console.log(startMinutes, endMinutes);
+    return startMinutes < endMinutes;
+    
   }
-
   return true;
 }, {
   message: "End time must be more than start time",
@@ -46,4 +50,4 @@ export const availabilitySchema = z.object({
   saturday: daySchema,
   sunday: daySchema,
   timeGap: z.number().min(0, "Time gap must be 0 or more minutes").int(),
-})
+});

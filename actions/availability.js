@@ -35,7 +35,7 @@ export async function getUserAvailability() {
         "saturday",
         "sunday"
     ].forEach((day) => {
-        const dayAvailability = user.availability.days.find(d => d.day === days.toUpperCase());
+        const dayAvailability = user.availability.days.find(d => d.day === day.toUpperCase());
 
         availabilityData[day] = {
             isAvailable: !!dayAvailability,
@@ -82,7 +82,7 @@ export async function updateAvailability(data) {
         await db.availability.update({
             where:{ id: user.availability.id },
             data: {
-                timeGap: data.timeGap,
+                timegap: data.timeGap,
                 days: {
                     deleteMany: {},
                     create: availabilityData,
@@ -93,7 +93,7 @@ export async function updateAvailability(data) {
         await db.availability.create({
             data: {
                 userId: user.id,
-                timeGap: data.timeGap,
+                timegap: data.timeGap,
                 days: {
                     create: availabilityData,
                 }
