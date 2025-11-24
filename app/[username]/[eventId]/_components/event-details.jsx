@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Calendar, Clock } from "lucide-react";
 
 const EventDetails = ({ event }) => {
   const { user } = event;
@@ -11,12 +12,19 @@ const EventDetails = ({ event }) => {
           <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
         </Avatar>
         <div>
-          <h2 className="text-xl font-semibold">
-            {user?.name || "Unknown User"}
-          </h2>
+          <h2 className="text-xl font-semibold">{user?.name || "Unknown User"}</h2>
           <p className="text-gray-600">@{user?.username || "Unknown User"}</p>
         </div>
       </div>
+      <div className="flex items-center mb-2">
+        <Clock size={20} className="mr-2" />
+        <span>{event.duration} minutes</span>
+      </div>
+      <div className="flex items-center mb-4">
+        <Calendar size={20} className="mr-2" />
+        <span>Google Meet</span>
+      </div>
+      <p className="text-gray-700">{event.description}</p>
     </div>
   );
 };

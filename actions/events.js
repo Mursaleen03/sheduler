@@ -109,3 +109,34 @@ export async function getEventDetails(username, eventId) {
     });
     return event;
 }
+
+export async function getEventAvailability(eventId, date) {
+    const event = await db.event.findUnique({
+        where: {
+            id: eventId,
+        },
+        include: {
+            user: {
+                include: {
+                    availability: {
+                        select: {
+                            days: true,
+                            timeGap: true,
+                        }
+                    },
+                    bookings: {
+                        select: {
+                            startTime: true,
+                            endTime: true,
+                        }
+                    }
+                }
+            },
+        },
+    });
+    if(!event && event.user.availability) {
+        return [];
+    }
+
+    const { availability, bookings } = event.user;
+}
