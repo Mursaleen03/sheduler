@@ -1,104 +1,229 @@
-'use server'; 
+"use server";
 
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
+import {
+  add,
+  addDays,
+  addMinutes,
+  format,
+  isBefore,
+  parseISO,
+  startOfDay,
+} from "date-fns";
 
 export async function getUserAvailability() {
-    const { userId } = await auth();
+  const { userId } = await auth();
 
-    if (!userId) {
-        throw new Error("Unauthorized");
-    }
-    const user = await db.user.findUnique({
-        where: { clerkUserId: userId },
-        include: {
-            availability: {
-                include: { days: true },
-            }
-        }
-    });
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+    include: {
+      availability: {
+        include: { days: true },
+      },
+    },
+  });
 
-    if (!user || !user.availability) {
-        return null
-    }
+  if (!user || !user.availability) {
+    return null;
+  }
 
-    const availabilityData = {
-        timeGap: user.availability.timeGap,
+  const availabilityData = {
+    timeGap: user.availability.timeGap,
+  };
+
+  [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ].forEach((day) => {
+    const dayAvailability = user.availability.days.find(
+      (d) => d.day === day.toUpperCase()
+    );
+
+    availabilityData[day] = {
+      isAvailable: !!dayAvailability,
+      startTime: dayAvailability
+        ? dayAvailability.startTime.toISOString().slice(11, 16)
+        : "09:00",
+      endTime: dayAvailability
+        ? dayAvailability.endTime.toISOString().slice(11, 16)
+        : "17:00",
     };
+  });
 
-    [
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-        "sunday"
-    ].forEach((day) => {
-        const dayAvailability = user.availability.days.find(d => d.day === day.toUpperCase());
-
-        availabilityData[day] = {
-            isAvailable: !!dayAvailability,
-            startTime: dayAvailability ? dayAvailability.startTime.toISOString().slice(11,16) : "09:00",
-            endTime: dayAvailability ? dayAvailability.startTime.toISOString().slice(11,16) : "17:00",
-        }
-    });
-
-    return availabilityData
+  return availabilityData;
 }
 
 export async function updateAvailability(data) {
-    const { userId } = await auth();
+  const { userId } = await auth();
 
-    if (!userId) {
-        throw new Error("Unauthorized");
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+    include: {
+      availability: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const availabilityData = Object.entries(data).flatMap(
+    ([day, { isAvailable, startTime, endTime }]) => {
+      if (isAvailable) {
+        const baseDate = new Date().toISOString().split("T")[0];
+        return [
+          {
+            day: day.toUpperCase(),
+            startTime: new Date(`${baseDate}T${startTime}`),
+            endTime: new Date(`${baseDate}T${endTime}`),
+          },
+        ];
+      }
+      return [];
     }
-    const user = await db.user.findUnique({
-        where: { clerkUserId: userId },
+  );
+
+  if (user.availability) {
+    await db.availability.update({
+      where: { id: user.availability.id },
+      data: {
+        timegap: data.timeGap,
+        days: {
+          deleteMany: {},
+          create: availabilityData,
+        },
+      },
+    });
+  } else {
+    await db.availability.create({
+      data: {
+        userId: user.id,
+        timegap: data.timeGap,
+        days: {
+          create: availabilityData,
+        },
+      },
+    });
+  }
+  return { success: true };
+}
+
+export async function getEventAvailability(eventId, date) {
+  const event = await db.event.findUnique({
+    where: {
+      id: eventId,
+    },
+    include: {
+      user: {
         include: {
-            availability: true,
-        }
+          availability: {
+            select: {
+              days: true,
+              timegap: true,
+            },
+          },
+          bookings: {
+            select: {
+              startTime: true,
+              endTime: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!event || !event.user.availability) {
+    return [];
+  }
+
+  const { availability, bookings } = event.user;
+
+  const startDate = startOfDay(new Date());
+  const endDate = addDays(startDate, 30);
+
+  const availableDates = [];
+
+  for (let date = startDate; date <= endDate; date = addDays(date, 1)) {
+    const dayOfWeek = format(date, "EEEE").toUpperCase();
+    const dayAvailability = availability.days.find((d) => d.day === dayOfWeek);
+    if (dayAvailability) {
+      const dateStr = format(date, "yyyy-MM-dd");
+
+      const slots = generateAvailableTimeSlots(
+        dayAvailability.startTime,
+        dayAvailability.endTime,
+        event.duration,
+        bookings,
+        dateStr,
+        availability.timegap
+      );
+
+      availableDates.push({
+        date: dateStr,
+        slots,
+      });
+    }
+  }
+  return availableDates;
+}
+
+function generateAvailableTimeSlots(
+  startTime,
+  endTime,
+  duration,
+  bookings,
+  dateStr,
+  timegap = 0
+) {
+  const slots = [];
+
+  let currentTime = parseISO(`${dateStr}T${startTime.toISOString().slice(11, 16)}`);
+  const slotEndTime = parseISO(`${dateStr}T${endTime.toISOString().slice(11, 16)}`);
+
+  const now = new Date();
+
+  if (format(now, "yyyy-MM-dd") === dateStr) {
+    currentTime = isBefore(currentTime, now)
+      ? addMinutes(now, timegap)
+      : currentTime;
+  }
+
+  // FIX: Normalize booking times to this date (important)
+  const normalizedBookings = bookings.map(b => {
+    const start = parseISO(`${dateStr}T${format(b.startTime, "HH:mm")}`);
+    const end = parseISO(`${dateStr}T${format(b.endTime, "HH:mm")}`);
+    return { start, end };
+  });
+
+  while (currentTime < slotEndTime) {
+    const slotEnd = addMinutes(currentTime, duration);
+
+    const isSlotAvailable = !normalizedBookings.some(({ start, end }) => {
+      return (
+        (currentTime >= start && currentTime < end) ||
+        (slotEnd > start && slotEnd <= end) ||
+        (currentTime <= start && slotEnd >= end)
+      );
     });
 
-    if (!user) {
-        throw new Error("User not found");
+    if (isSlotAvailable) {
+      slots.push(format(currentTime, "HH:mm"));
     }
 
-    const availabilityData = Object.entries(data).flatMap(([day, {isAvailable, startTime, endTime}]) => {
-        if(isAvailable) {
-            const baseDate = new Date().toISOString().split("T")[0];
-            return [
-                {
-                    day: day.toUpperCase(),
-                    startTime: new Date(`${baseDate}T${startTime}`),
-                    endTime: new Date(`${baseDate}T${startTime}`)
-                }
-            ]
-        }
-        return []
-    });
+    currentTime = slotEnd;
+  }
 
-    if(user.availability){
-        await db.availability.update({
-            where:{ id: user.availability.id },
-            data: {
-                timegap: data.timeGap,
-                days: {
-                    deleteMany: {},
-                    create: availabilityData,
-                }
-            }
-        });
-    } else {
-        await db.availability.create({
-            data: {
-                userId: user.id,
-                timegap: data.timeGap,
-                days: {
-                    create: availabilityData,
-                }
-            }
-        });
-    }
-    return { success: true };
+  return slots;
 }
