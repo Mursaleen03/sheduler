@@ -79,10 +79,17 @@ export async function updateAvailability(data) {
     throw new Error("User not found");
   }
 
-  const availabilityData = Object.entries(data).flatMap(
+  // Extract timeGap separately
+  const { timeGap, ...dayData } = data;
+
+  const availabilityData = Object.entries(dayData).flatMap(
     ([day, { isAvailable, startTime, endTime }]) => {
       if (isAvailable) {
         const baseDate = new Date().toISOString().split("T")[0];
+        console.log(`Creating availability for ${day}:`, {
+          startTime,
+          endTime,
+        });
         return [
           {
             day: day.toUpperCase(),
@@ -95,11 +102,13 @@ export async function updateAvailability(data) {
     }
   );
 
+  console.log("Availability data to save:", availabilityData);
+
   if (user.availability) {
     await db.availability.update({
       where: { id: user.availability.id },
       data: {
-        timegap: data.timeGap,
+        timegap: timeGap,
         days: {
           deleteMany: {},
           create: availabilityData,
@@ -110,7 +119,7 @@ export async function updateAvailability(data) {
     await db.availability.create({
       data: {
         userId: user.id,
-        timegap: data.timeGap,
+        timegap: timeGap,
         days: {
           create: availabilityData,
         },
@@ -185,36 +194,34 @@ function generateAvailableTimeSlots(
   duration,
   bookings,
   dateStr,
-  timegap = 0
+  timeGap = 0
 ) {
   const slots = [];
+  let currentTime = parseISO(
+    `${dateStr}T${startTime.toISOString().slice(11, 16)}`
+  );
+  const slotEndTime = parseISO(
+    `${dateStr}T${endTime.toISOString().slice(11, 16)}`
+  );
 
-  let currentTime = parseISO(`${dateStr}T${startTime.toISOString().slice(11, 16)}`);
-  const slotEndTime = parseISO(`${dateStr}T${endTime.toISOString().slice(11, 16)}`);
-
+  // If the date is today, start from the next available slot after the current time
   const now = new Date();
-
   if (format(now, "yyyy-MM-dd") === dateStr) {
     currentTime = isBefore(currentTime, now)
-      ? addMinutes(now, timegap)
+      ? addMinutes(now, timeGap)
       : currentTime;
   }
 
-  // FIX: Normalize booking times to this date (important)
-  const normalizedBookings = bookings.map(b => {
-    const start = parseISO(`${dateStr}T${format(b.startTime, "HH:mm")}`);
-    const end = parseISO(`${dateStr}T${format(b.endTime, "HH:mm")}`);
-    return { start, end };
-  });
-
   while (currentTime < slotEndTime) {
-    const slotEnd = addMinutes(currentTime, duration);
+    const slotEnd = new Date(currentTime.getTime() + duration * 60000);
 
-    const isSlotAvailable = !normalizedBookings.some(({ start, end }) => {
+    const isSlotAvailable = !bookings.some((booking) => {
+      const bookingStart = booking.startTime;
+      const bookingEnd = booking.endTime;
       return (
-        (currentTime >= start && currentTime < end) ||
-        (slotEnd > start && slotEnd <= end) ||
-        (currentTime <= start && slotEnd >= end)
+        (currentTime >= bookingStart && currentTime < bookingEnd) ||
+        (slotEnd > bookingStart && slotEnd <= bookingEnd) ||
+        (currentTime <= bookingStart && slotEnd >= bookingEnd)
       );
     });
 
