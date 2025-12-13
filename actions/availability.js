@@ -86,15 +86,11 @@ export async function updateAvailability(data) {
     ([day, { isAvailable, startTime, endTime }]) => {
       if (isAvailable) {
         const baseDate = new Date().toISOString().split("T")[0];
-        console.log(`Creating availability for ${day}:`, {
-          startTime,
-          endTime,
-        });
         return [
           {
             day: day.toUpperCase(),
-            startTime: new Date(`${baseDate}T${startTime}`),
-            endTime: new Date(`${baseDate}T${endTime}`),
+            startTime: new Date(`${baseDate}T${startTime}:00Z`),
+            endTime: new Date(`${baseDate}T${endTime}:00Z`),
           },
         ];
       }
