@@ -25,6 +25,7 @@
     "dotenv": "^17.2.3",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
+    "googleapis": "^168.0.0",
     "lucide-react": "^0.552.0",
     "next": "16.0.1",
     "react": "19.2.0",
