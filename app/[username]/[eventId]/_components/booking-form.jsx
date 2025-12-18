@@ -76,25 +76,36 @@ const BookingForm = ({ event, availability }) => {
       await fnCreateBooking(bookingData);
     };
 
-    if(data) {
+    if (data?.success) {
       return (
         <div className="text-center p-10 border bg-white">
           <h2 className="text-2xl font-bold mb-4">Booking Successful!</h2>
-          {data.meetLink && (
+          {data.meetLink ? (
             <p>
               Join the meeting:{" "}
               <a
-              href={data.meetLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
+                href={data.meetLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
               >
                 {data.meetLink}
               </a>
             </p>
+          ) : (
+            <p>No meeting link was generated.</p>
           )}
         </div>
-      )
+      );
+    }
+
+    if (data && !data.success) {
+      return (
+        <div className="text-center p-10 border bg-white">
+          <h2 className="text-2xl font-bold mb-4">Booking Failed</h2>
+          <p className="text-red-500">{data.error || 'An error occurred'}</p>
+        </div>
+      );
     }
 
 
